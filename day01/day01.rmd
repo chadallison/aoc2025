@@ -1,0 +1,70 @@
+---
+title: "day01"
+output: html_document
+---
+
+```{r message = F, warning = F}
+library(tidyverse)
+library(glue)
+x = readLines("input.txt")
+```
+
+```{r}
+df = tibble(x) |>
+  mutate(txt = gsub("[0-9]", "", x),
+         num = as.integer(gsub("[A-Za-z]", "", x)))
+```
+
+```{r}
+positions = numeric(nrow(df))
+current = 50
+
+for (i in seq_len(nrow(df))) {
+  if (df$txt[i] == "L") {
+    current = (current - df$num[i]) %% 100
+  } else {
+    current = (current + df$num[i]) %% 100
+  }
+  positions[i] = current
+}
+
+df = df |>
+  mutate(pos = positions,
+         is_zero = pos == 0)
+
+as.character(glue("Part 1 solution: {sum(df$is_zero)}"))
+```
+
+```{r}
+total_zeros = 0
+current = 50
+
+for (i in seq_len(nrow(df))) {
+  direction = df$txt[i]
+  dist = df$num[i]
+
+  for (step in seq_len(dist)) {
+    if (direction == "L") {
+      current = (current - 1) %% 100
+    } else {
+      current = (current + 1) %% 100
+    }
+
+    if (current == 0) {
+      total_zeros = total_zeros + 1
+    }
+  }
+}
+
+as.character(glue("Part 2 solution: {total_zeros}"))
+```
+
+
+
+
+
+
+
+
+
+
