@@ -1,0 +1,107 @@
+---
+title: "day02"
+output: html_document
+---
+
+```{r message = F, warning = F}
+library(tidyverse)
+library(glue)
+
+x = unlist(str_split(readLines("input.txt"), pattern = ","))
+
+df = tibble(x) |>
+  separate(x, into = c("l", "r"), sep = "-", remove = F, convert = T)
+```
+
+```{r}
+tictoc::tic()
+
+# max number of digits across all endpoints
+max_digits = max(nchar(c(df$l, df$r)))
+
+# if max_digits < 2 there are no invalid IDs
+if (max_digits < 2) {
+  answer = 0
+} else {
+
+  # generate all possible invalid numbers (pasted pattern repeated twice)
+  all_invalid = seq(2, max_digits, by = 2) |>
+    map(function(total_len) {
+      half_len = total_len / 2
+      start = 10 ^ (half_len - 1)
+      end = (10 ^ half_len) - 1
+      patterns = seq(start, end)
+      as.numeric(paste0(patterns, patterns))
+    }) |>
+    unlist() |>
+    unique() |>
+    sort()
+
+  # filter which fall inside each input range and sum them
+  answer = df |>
+    mutate(invalid = map2(
+      l, r, function(a, b) all_invalid[all_invalid >= a & all_invalid <= b]
+    )) |>
+    pull(invalid) |>
+    unlist() |>
+    sum()
+}
+
+tictoc::toc()
+as.character(glue("Part 2 solution: {answer}"))
+```
+
+```{r}
+tictoc::tic()
+
+# generate all invalid IDs for part two
+all_invalid =
+  seq(1, max_digits) |>
+  map(function(L) {
+    # find all k such that pattern length k repeats >= 2 times
+    ks = seq(1, L) |> keep(function(k) L %% k == 0 && (L / k) >= 2)
+
+    if (length(ks) == 0) {
+      return(NULL)
+    }
+
+    map(ks, function(k) {
+      repeat_count = L / k
+      start = 10 ^ (k - 1)
+      end = (10 ^ k) - 1
+      patterns = seq(start, end)
+
+      map_chr(patterns, function(p) {
+        paste0(rep(p, repeat_count), collapse = "")
+      })
+    }) |> 
+      unlist()
+  }) |>
+  unlist() |>
+  as.numeric() |>
+  unique() |>
+  sort()
+
+sol = df |>
+  mutate(invalid = map2(
+    l, r, function(a, b) all_invalid[all_invalid >= a & all_invalid <= b]
+  )) |>
+  pull(invalid) |>
+  unlist() |>
+  sum()
+
+tictoc::toc()
+as.character(glue("Part 2 solution: {sol}"))
+```
+
+
+
+
+
+
+
+
+
+
+
+

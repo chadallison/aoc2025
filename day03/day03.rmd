@@ -1,0 +1,74 @@
+---
+title: "day03"
+output: html_document
+---
+
+```{r message = F, warning = F}
+library(tidyverse)
+library(glue)
+
+input_raw = readLines("input.txt")
+```
+
+```{r}
+tictoc::tic()
+sum = 0
+
+for (i in 1:length(input_raw)) {
+  res = input_raw[i] |>
+    str_split(pattern = "") |>
+    unlist() |>
+    combn(2, FUN = function(x) paste0(x, collapse = "")) |>
+    as.numeric() |>
+    max()
+  
+  sum = sum + res
+}
+
+tictoc::toc()
+as.character(glue("Part 1 solution: {sum}"))
+```
+
+```{r}
+tictoc::tic()
+
+pick_top12 = function(x) {
+  
+  digits = x |>
+    str_split(pattern = "") |>
+    unlist() |>
+    as.integer()
+  
+  need = 12
+  start = 1
+  n = length(digits)
+  result = integer(12)
+  pos = 1
+  
+  while (need > 0) {
+    end = n - need + 1
+    window = digits[start:end]
+    
+    max_digit = max(window)
+    max_index = which(window == max_digit)[1]
+    
+    result[pos] = max_digit
+    pos = pos + 1
+    need = need - 1
+    start = start + max_index
+  }
+  
+  paste0(result, collapse = "")
+}
+
+total = 0
+
+for (i in 1:length(input_raw)) {
+  chosen = pick_top12(input_raw[i])
+  total = total + as.numeric(chosen)
+}
+
+tictoc::toc()
+as.character(glue("Part 2 solution: {total}"))
+```
+
