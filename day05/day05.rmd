@@ -1,0 +1,70 @@
+---
+title: "day05"
+output: html_document
+---
+
+```{r message = F, warning = F}
+library(tidyverse)
+library(glue)
+
+input = readLines("input.txt")
+```
+
+```{r}
+tictoc::tic()
+
+ranges = tibble(x = input[str_detect(input, pattern = "-")]) |>
+  separate(x, into = c("l", "r"), sep = "-", convert = T, remove = T)
+
+ids = as.numeric(input[!str_detect(input, pattern = "-") & input != ""])
+
+# For each id, check if it falls inside any range
+valid_flags = vapply(
+  ids,
+  function(id) any(id >= ranges$l & id <= ranges$r),
+  logical(1)
+)
+
+sol = length(ids[valid_flags])
+tictoc::toc()
+as.character(glue("Part 1 solution: {sol}"))
+```
+
+```{r}
+# parse ranges as you already do
+ranges = tibble(x = input[str_detect(input, pattern = "-")]) |>
+  separate(x, into = c("l", "r"), sep = "-", convert = T, remove = T)
+
+if (nrow(ranges) == 0) {
+  total_fresh = 0
+} else {
+  # sort ranges by left then right
+  ord = order(ranges$l, ranges$r)
+  l = ranges$l[ord]
+  r = ranges$r[ord]
+
+  total_fresh = 0
+  cur_l = l[1]
+  cur_r = r[1]
+
+  for (i in seq.int(2, length(l))) {
+    if (l[i] <= cur_r + 1) {
+      # overlap or contiguous -> extend current segment
+      if (r[i] > cur_r) {
+        cur_r = r[i]
+      }
+    } else {
+      # finish current segment and start new one
+      total_fresh = total_fresh + (cur_r - cur_l + 1)
+      cur_l = l[i]
+      cur_r = r[i]
+    }
+  }
+
+  # add last segment
+  total_fresh = total_fresh + (cur_r - cur_l + 1)
+}
+
+as.character(glue("Part 2 solution: {total_fresh}"))
+```
+

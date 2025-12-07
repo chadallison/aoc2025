@@ -1,0 +1,116 @@
+---
+title: "day04"
+output: html_document
+---
+
+```{r message = F, warning = F}
+library(tidyverse)
+library(glue)
+
+input_raw = readLines("input.txt")
+```
+
+```{r}
+tictoc::tic()
+
+# build grid
+grid = tibble(row = seq_along(input_raw),
+              line = input_raw) |>
+  mutate(chars = strsplit(line, "")) |>
+  select(row, chars) |>
+  unnest_wider(chars, names_sep = "_") |>
+  pivot_longer(cols = starts_with("chars_"),
+               names_to = "col",
+               values_to = "val") |>
+  mutate(col = as.integer(gsub("chars_", "", col)))
+
+# neighbor offsets (8 directions)
+neighbors = expand_grid(dr = -1:1, dc = -1:1) |>
+  filter(!(dr == 0 & dc == 0))
+
+# only actual rolls
+rolls = grid |>
+  filter(val == "@")
+
+# cross join rolls with neighbor offsets
+adj = rolls |>
+  cross_join(neighbors) |>
+  mutate(nr = row + dr,
+         nc = col + dc) |>
+  inner_join(grid |> select(row, col, val_neighbor = val),
+             by = c("nr" = "row", "nc" = "col")) |>
+  group_by(row, col) |>
+  summarise(adj_count = sum(val_neighbor == "@"), .groups = "drop")
+
+# count rolls with fewer than 4 adjacent rolls
+sol = adj |>
+  filter(adj_count < 4) |>
+  nrow()
+
+tictoc::toc()
+as.character(glue("Part 1 solution: {sol}"))
+```
+
+```{r}
+tictoc::tic()
+
+# build grid (same as part 1)
+grid = tibble(row = seq_along(input_raw),
+              line = input_raw) |>
+  mutate(chars = strsplit(line, "")) |>
+  select(row, chars) |>
+  unnest_wider(chars, names_sep = "_") |>
+  pivot_longer(cols = starts_with("chars_"),
+               names_to = "col",
+               values_to = "val") |>
+  mutate(col = as.integer(gsub("chars_", "", col)))
+
+# neighbor offsets (8 directions)
+neighbors = expand_grid(dr = -1:1, dc = -1:1) |>
+  filter(!(dr == 0 & dc == 0))
+
+# helper to count adjacent rolls for each '@' in the current grid
+count_adjacent = function(df) {
+  rolls = df |> filter(val == "@")
+
+  if (nrow(rolls) == 0) {
+    return(tibble(row = integer(), col = integer(), adj_count = integer()))
+  }
+
+  rolls |>
+    cross_join(neighbors) |>
+    mutate(nr = row + dr,
+           nc = col + dc) |>
+    inner_join(df |> select(row, col, val_neighbor = val),
+               by = c("nr" = "row", "nc" = "col")) |>
+    group_by(row, col) |>
+    summarise(adj_count = sum(val_neighbor == "@"), .groups = "drop")
+}
+
+# iterative removal loop
+sol = 0
+current_grid = grid
+
+repeat {
+  adj = count_adjacent(current_grid)
+
+  accessible = adj |> filter(adj_count < 4)
+
+  if (nrow(accessible) == 0) {
+    break
+  }
+
+  sol = sol + nrow(accessible)
+
+  current_grid = current_grid |>
+    left_join(accessible |> mutate(remove = TRUE),
+              by = c("row", "col")) |>
+    mutate(val = if_else(!is.na(remove) & remove, ".", val)) |>
+    select(-remove)
+}
+
+tictoc::toc()
+
+as.character(glue("Part 2 solution: {sol}"))
+```
+

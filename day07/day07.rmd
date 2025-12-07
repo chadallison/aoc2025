@@ -1,0 +1,164 @@
+---
+title: "day07"
+output: html_document
+---
+
+```{r message = F, warning = F}
+tictoc::tic()
+
+library(tidyverse)
+library(glue)
+
+input = readLines("input.txt")
+
+grid = str_split(input, pattern = "", simplify = T)
+nrow = nrow(grid)
+ncol = ncol(grid)
+start_col = which(grid[1, ] == "S")
+
+# pre-index splitters: for each column, store rows of "^"
+splitters = vector("list", ncol)
+
+for (c in 1:ncol) {
+  splitters[[c]] = which(grid[, c] == "^")
+}
+
+# queue stored as integer vectors
+beam_r = integer(1)
+beam_c = integer(1)
+
+beam_r[1] = 1L
+beam_c[1] = start_col
+head_idx = 1L
+tail_idx = 1L
+splits = 0L
+
+# visited cells to avoid reprocessing; mark both arrival positions and splitter cells
+visited = matrix(F, nrow = nrow, ncol = ncol)
+
+while (head_idx <= tail_idx) {
+  r = beam_r[head_idx]
+  c = beam_c[head_idx]
+  head_idx = head_idx + 1L
+  if (r > nrow) next
+  if (c < 1L || c > ncol) next
+  # if we've already processed a beam arriving at this cell, skip
+  if (visited[r, c]) next
+  visited[r, c] = T
+  # find next splitter in this column strictly below r
+  sp = splitters[[c]]
+  if (length(sp) == 0L) next
+  idx = which(sp > r)
+  if (length(idx) == 0L) next
+  nr = sp[idx[1]] # next splitter row in this column
+  # if that splitter was already handled, skip counting/spawning
+  if (visited[nr, c]) next
+  # mark the splitter as handled and count the split
+  visited[nr, c] = T
+  splits = splits + 1L
+  # spawn left beam from row nr + 1, col c - 1
+  lr = nr + 1L
+  lc = c - 1L
+  
+  if (lr <= nrow && lc >= 1L && lc <= ncol) {
+    tail_idx = tail_idx + 1L
+    beam_r[tail_idx] = lr
+    beam_c[tail_idx] = lc
+  }
+
+  # spawn right beam from row nr + 1, col c + 1
+  rr = nr + 1L
+  rc = c + 1L
+  
+  if (rr <= nrow && rc >= 1L && rc <= ncol) {
+    tail_idx = tail_idx + 1L
+    beam_r[tail_idx] = rr
+    beam_c[tail_idx] = rc
+  }
+}
+
+sol = splits
+as.character(glue("Part 1 solution: {sol}"))
+
+grid = str_split(input, pattern = "", simplify = T)
+nrow = nrow(grid)
+ncol = ncol(grid)
+start_col = which(grid[1, ] == "S")
+# numeric counts per column for the current row (number of timelines arriving)
+cur = numeric(ncol)
+cur[start_col] = 1
+exited = 0
+
+for (r in 1:nrow) {
+  nxt = numeric(ncol)
+  # treat "S" like empty space
+  rowcells = grid[r, ]
+  rowcells[rowcells == "S"] = "."
+  # straight-through cells (.) contribute to same column in next row
+  straight_idx = which(rowcells == ".")
+  
+  if (length(straight_idx) > 0L) {
+    nxt[straight_idx] = nxt[straight_idx] + cur[straight_idx]
+  }
+
+  # splitter cells (^) split into left and right at next row
+  split_idx = which(rowcells == "^")
+  
+  if (length(split_idx) > 0L) {
+    # left contributions: col - 1
+    left_cols = split_idx - 1L
+    valid_left = which(left_cols >= 1L)
+    
+    if (length(valid_left) > 0L) {
+      cols = left_cols[valid_left]
+      vals = cur[split_idx[valid_left]]
+      nxt[cols] = nxt[cols] + vals
+    }
+
+    # right contributions: col + 1
+    right_cols = split_idx + 1L
+    valid_right = which(right_cols <= ncol)
+    
+    if (length(valid_right) > 0L) {
+      cols = right_cols[valid_right]
+      vals = cur[split_idx[valid_right]]
+      nxt[cols] = nxt[cols] + vals
+    }
+
+    # any left or right that would go out of bounds exits the manifold
+    if (any(left_cols < 1L)) {
+      exited = exited + sum(cur[ split_idx[left_cols < 1L] ])
+    }
+    
+    if (any(right_cols > ncol)) {
+      exited = exited + sum(cur[ split_idx[right_cols > ncol]])
+    }
+  }
+
+  # any straight-through contributions from the last row (r == nrow) actually exit
+  if (r == nrow) {
+    exited = exited + sum(nxt)
+    nxt[] = 0
+  }
+
+  cur = nxt
+}
+
+sol = exited
+as.character(glue("Part 2 solution: {sol}"))
+tictoc::toc()
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+

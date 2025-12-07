@@ -1,0 +1,68 @@
+---
+title: "day06"
+output: html_document
+---
+
+```{r message = F, warning = F}
+tictoc::tic()
+
+library(tidyverse)
+library(glue)
+
+input = readLines("input.txt")
+
+row1 = as.numeric(unlist(str_split(input[1], pattern = " +")))
+row2 = as.numeric(unlist(str_split(input[2], pattern = " +")))
+row3 = as.numeric(unlist(str_split(input[3], pattern = " +")))
+row4 = as.numeric(unlist(str_split(input[4], pattern = " +")))
+ops = unlist(str_split(input[5], pattern = " +"))
+
+sol = 0
+
+for (i in 1:length(row1)) {
+  res = Reduce(match.fun(ops[i]), c(row1[i], row2[i], row3[i], row4[i]))
+  sol = sol + res
+}
+
+as.character(glue("Part 1 solution: {sol}"))
+
+chars = str_split(input, "", simplify = T)
+n_rows = nrow(chars)
+n_cols = ncol(chars)
+
+sol = 0
+col = n_cols
+
+while (col >= 1) {
+
+  if (all(chars[, col] == " ")) {
+    col = col - 1
+    next
+  }
+
+  problem_cols = c()
+  
+  while (col >= 1 && !all(chars[, col] == " ")) {
+    problem_cols = c(problem_cols, col)
+    col = col - 1
+  }
+
+  problem_cols = rev(problem_cols)
+  numbers = c()
+  
+  for (pc in problem_cols) {
+    digits = chars[1:(n_rows - 1), pc]
+    num = as.numeric(paste0(digits, collapse = ""))
+    numbers = c(numbers, num)
+  }
+
+  op = chars[n_rows, problem_cols[1]]
+  res = Reduce(match.fun(op), numbers)
+  sol = sol + res
+}
+
+as.character(glue("Part 2 solution: {sol}"))
+tictoc::toc()
+```
+
+
