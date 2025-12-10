@@ -4,6 +4,7 @@ output: html_document
 ---
 
 ```{r message = F, warning = F}
+tictoc::tic()
 library(tidyverse)
 library(glue)
 
@@ -22,17 +23,6 @@ pairs = expand_grid(a = 1:nrow(df), b = 1:nrow(df)) |>
 
 sol = max(pairs$area)
 as.character(glue("Part 1 solution: {sol}"))
-```
-
-```{r}
-
-library(tidyverse)
-library(glue)
-
-# --- 1. Load and Prepare Data ---
-input = readLines("input.txt")
-df = tibble(x = input) |>
-  separate(x, into = c("l", "r"), sep = ",", convert = T, remove = T)
 
 # Extract vertices
 v_x = df$l
@@ -164,6 +154,6 @@ final_results = pairs_indices |>
 
 sol2 = max(final_results$real_area)
 as.character(glue("Part 2 solution: {sol2}"))
-
+tictoc::toc()
 ```
 
