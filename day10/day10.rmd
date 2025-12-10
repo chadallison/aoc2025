@@ -22,10 +22,12 @@ parse_buttons = function(x) {
 
 build_matrix = function(buttons, n) {
   m = matrix(0, nrow = n, ncol = length(buttons))
+  
   for (j in seq_along(buttons)) {
     idx = buttons[[j]] + 1
     m[idx, j] = 1
   }
+  
   m
 }
 
@@ -33,7 +35,6 @@ gf2_nullspace = function(A) {
   A = A %% 2
   m = nrow(A)
   n = ncol(A)
-
   R = A
   pivots = rep(0, m)
   row = 1
@@ -42,17 +43,21 @@ gf2_nullspace = function(A) {
     pivot_row = which(R[row:m, col] == 1)[1]
     if (!is.na(pivot_row)) {
       pivot_row = pivot_row + row - 1
+      
       if (pivot_row != row) {
         tmp = R[row, ]
         R[row, ] = R[pivot_row, ]
         R[pivot_row, ] = tmp
       }
+      
       pivots[row] = col
+      
       for (r in seq_len(m)) {
         if (r != row && R[r, col] == 1) {
           R[r, ] = (R[r, ] + R[row, ]) %% 2
         }
       }
+      
       row = row + 1
       if (row > m) break
     }
@@ -71,14 +76,15 @@ gf2_nullspace = function(A) {
     v[fc] = 1
     for (i in seq_along(pivots)) {
       pc = pivots[i]
+      
       if (pc != 0 && R[i, fc] == 1) {
         v[pc] = 1
       }
     }
+    
     basis[, col_idx] = v %% 2
     col_idx = col_idx + 1
   }
-
   basis
 }
 
@@ -86,26 +92,30 @@ solve_gf2 = function(A, b) {
   m = nrow(A)
   n = ncol(A)
   Ab = cbind(A %% 2, b %% 2)
-
   R = Ab
   pivots = rep(0, m)
   row = 1
 
   for (col in 1:n) {
     pivot_row = which(R[row:m, col] == 1)[1]
+    
     if (!is.na(pivot_row)) {
       pivot_row = pivot_row + row - 1
+      
       if (pivot_row != row) {
         tmp = R[row, ]
         R[row, ] = R[pivot_row, ]
         R[pivot_row, ] = tmp
       }
+      
       pivots[row] = col
+      
       for (r in seq_len(m)) {
         if (r != row && R[r, col] == 1) {
           R[r, ] = (R[r, ] + R[row, ]) %% 2
         }
       }
+      
       row = row + 1
       if (row > m) break
     }
@@ -118,8 +128,10 @@ solve_gf2 = function(A, b) {
   }
 
   x0 = rep(0, n)
+  
   for (i in seq_along(pivots)) {
     pc = pivots[i]
+    
     if (pc != 0) {
       x0[pc] = R[i, n + 1]
     }
@@ -138,30 +150,27 @@ solve_gf2 = function(A, b) {
   for (mask in 0:(combos - 1)) {
     bits = as.integer(intToBits(mask))[1:k]
     vec = x0
+    
     for (j in seq_len(k)) {
       if (bits[j] == 1) vec = (vec + N[, j]) %% 2
     }
+    
     out[, mask + 1] = vec
   }
-
   out
 }
 
 fewest_presses = function(line) {
   diag = str_extract(line, "\\[[^]]*\\]") |>
     str_remove_all("[\\[\\]]")
+  
   target = to_vec(diag)
-
   buttons = parse_buttons(line)
   A = build_matrix(buttons, length(target))
-
   sols = solve_gf2(A, target)
   if (is.null(sols)) return(Inf)
-
   apply(sols, 2, sum) |> min()
 }
-
-# At the end, after reading input:
 
 input = readLines("input.txt")
 sol = sum(map_dbl(input, fewest_presses))
@@ -172,10 +181,8 @@ as.character(glue("Part 1 solution: {sol}"))
 fewest_presses_part2 = function(line) {
   buttons = parse_buttons(line)
   target = parse_targets(line)
-
   A = build_matrix(buttons, length(target))
   n_buttons = ncol(A)
-
   obj = rep(1, n_buttons)
 
   sol = lp(
@@ -184,7 +191,7 @@ fewest_presses_part2 = function(line) {
     const.mat = A,
     const.dir = rep("=", length(target)),
     const.rhs = target,
-    all.int = TRUE
+    all.int = T
   )
 
   if (sol$status != 0) {
@@ -195,12 +202,9 @@ fewest_presses_part2 = function(line) {
 }
 
 input = readLines("input.txt")
-total2 = sum(map_dbl(input, fewest_presses_part2))
-print(total2)
-
+sol = sum(map_dbl(input, fewest_presses_part2))
+as.character(glue("Part 2 solution: {sol}"))
 ```
 
-```{r}
 
-```
 
