@@ -1,0 +1,63 @@
+---
+title: "day12"
+output: html_document
+---
+
+```{r message = F, warning = F}
+library(tidyverse)
+library(glue)
+
+input = readLines("input.txt")
+```
+
+```{r}
+tictoc::tic()
+
+shape_blocks = input |>
+  enframe(name = "i", value = "line") |>
+  mutate(shape = cumsum(str_detect(line, "^\\d+:"))) |>
+  filter(str_detect(line, "[#.]")) |>
+  group_by(shape) |>
+  summarise(blocks = sum(str_count(line, "#")),
+            .groups = "drop")
+
+regions = input |>
+  keep(function(x) str_detect(x, "x")) |>
+  str_split(": ") |>
+  map_df(function(x) {
+    dims =
+      str_split(x[1], "x")[[1]] |>
+      as.integer()
+
+    counts =
+      str_split(x[2], " +")[[1]] |>
+      as.integer()
+
+    tibble(
+      width = dims[1],
+      height = dims[2],
+      counts = list(counts)
+    )
+  })
+
+can_fit = function(width, height, counts, blocks) {
+  sum(counts * blocks) <= width * height
+}
+
+regions = regions |>
+  mutate(ok = pmap_lgl(
+    list(width, height, counts),
+    function(width, height, counts) {
+      can_fit(width, height, counts, shape_blocks$blocks)
+    }
+  ))
+
+sol = sum(regions$ok)
+as.character(glue("Part 1 solution: {sol}"))
+tictoc::toc()
+```
+
+
+
+
+

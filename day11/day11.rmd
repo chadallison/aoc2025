@@ -1,0 +1,107 @@
+---
+title: "day11"
+output: html_document
+---
+
+```{r message = F, warning = F}
+library(tidyverse)
+library(glue)
+
+input = readLines("input.txt")
+```
+
+```{r}
+tictoc::tic()
+
+parse_input = function(lines) {
+  graph = list()
+  
+  for (line in lines) {
+    parts = str_split(line, ": ")[[1]]
+    device = parts[1]
+    outputs = str_split(parts[2], " ")[[1]]
+    graph[[device]] = outputs
+  }
+  
+  graph
+}
+
+count_paths = function(graph, start, end, visited = character()) {
+  if (start == end) {
+    return(1)
+  }
+  
+  if (start %in% visited) {
+    return(0)
+  }
+  
+  if (!start %in% names(graph)) {
+    return(0)
+  }
+  
+  visited = c(visited, start)
+  total_paths = 0
+  
+  for (neighbor in graph[[start]]) {
+    total_paths = total_paths + count_paths(graph, neighbor, end, visited)
+  }
+  
+  total_paths
+}
+
+graph = parse_input(input)
+sol = count_paths(graph, "you", "out")
+as.character(paste("Part 1 solution:", sol))
+tictoc::toc()
+```
+
+```{r}
+tictoc::tic()
+
+count_paths_with_requirements = function(graph, start, end, required) {
+  # State: (node, set of required nodes visited so far)
+  # We'll use a bitmask for the required nodes
+  memo = list()
+  
+  helper = function(node, mask) {
+    if (node == end) {
+      # Check if all required nodes visited (all bits set)
+      full_mask = (2^length(required)) - 1
+      return(if (mask == full_mask) 1 else 0)
+    }
+    
+    key = paste0(node, "_", mask)
+    if (!is.null(memo[[key]])) {
+      return(memo[[key]])
+    }
+    
+    if (!node %in% names(graph)) {
+      memo[[key]] <<- 0
+      return(0)
+    }
+    
+    total = 0
+    for (neighbor in graph[[node]]) {
+      new_mask = mask
+      # Check if neighbor is a required node
+      for (i in seq_along(required)) {
+        if (neighbor == required[i]) {
+          new_mask = bitwOr(new_mask, 2^(i-1))
+        }
+      }
+      total = total + helper(neighbor, new_mask)
+    }
+    
+    memo[[key]] <<- total
+    return(total)
+  }
+  
+  helper(start, 0)
+}
+
+sol = count_paths_with_requirements(graph, "svr", "out", c("dac", "fft"))
+as.character(paste("Part 2 solution:", sol))
+tictoc::toc()
+```
+
+
