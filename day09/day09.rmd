@@ -24,133 +24,70 @@ pairs = expand_grid(a = 1:nrow(df), b = 1:nrow(df)) |>
 sol = max(pairs$area)
 as.character(glue("Part 1 solution: {sol}"))
 
-# Extract vertices
 v_x = df$l
 v_y = df$r
 N = length(v_x)
-
-# --- 2. Coordinate Compression ---
-# Shrink the infinite grid to just the unique X/Y coordinates present in the data.
-# This makes the problem solvable even if coordinates are in the billions.
 xs = sort(unique(v_x))
 ys = sort(unique(v_y))
-
-# Create mapping: Coordinate -> Grid Index
 map_x = match(v_x, xs)
 map_y = match(v_y, ys)
-
 Nx = length(xs)
 Ny = length(ys)
-
-# --- 3. Build the Grid Matrices ---
-# B: Boundary Matrix (TRUE if the intersection is on the polygon boundary)
-# C: Crossing Matrix (Used to calculate interior via Winding Number)
-B = matrix(FALSE, nrow = Nx, ncol = Ny)
+B = matrix(F, nrow = Nx, ncol = Ny)
 C = matrix(0, nrow = Nx, ncol = Ny)
 
 for (i in 1:N) {
   i_next = (i %% N) + 1
-  
-  # Get grid indices for start and end of segment
-  ix1 = map_x[i]; iy1 = map_y[i]
+    ix1 = map_x[i]; iy1 = map_y[i]
   ix2 = map_x[i_next]; iy2 = map_y[i_next]
   
-  # 1. Mark Boundary (B)
-  if (ix1 == ix2) { # Vertical segment
-    B[ix1, min(iy1, iy2):max(iy1, iy2)] = TRUE
-  } else { # Horizontal segment
-    B[min(ix1, ix2):max(ix1, ix2), iy1] = TRUE
+  if (ix1 == ix2) {
+    B[ix1, min(iy1, iy2):max(iy1, iy2)] = T
+  } else {
+    B[min(ix1, ix2):max(ix1, ix2), iy1] = T
   }
   
-  # 2. Mark Crossings for Winding Number (C)
-  # Only vertical edges affect the horizontal winding number scan
   if (ix1 == ix2) {
-    if (iy2 > iy1) { # Upward edge
-      # Mark +1 for the interval [y1, y2)
+    if (iy2 > iy1) {
       if (iy2 > iy1) C[ix1, iy1:(iy2 - 1)] = C[ix1, iy1:(iy2 - 1)] + 1
-    } else { # Downward edge
-      # Mark -1 for the interval [y2, y1)
+    } else {
       if (iy1 > iy2) C[ix1, iy2:(iy1 - 1)] = C[ix1, iy2:(iy1 - 1)] - 1
     }
   }
 }
 
-# --- 4. Fill Interior (Scanline) ---
-# Calculate Winding Number by summing crossings cumulatively along the X-axis (rows)
-# apply(..., 2, cumsum) works on columns, so we transpose logic or just map carefully.
-# We want W[x, y] to be sum of C[1:x, y]. 
-# apply(C, 2, cumsum) returns a matrix where column j is cumsum(C[,j]), which is exactly what we want.
 W = apply(C, 2, cumsum)
-
-# A tile is valid if it is Interior (W != 0) OR on the Boundary (B)
 Is_Valid = (W != 0) | B
-
-# --- 5. Create 2D Prefix Sum (Integral Image) ---
-# This allows us to count valid tiles in ANY rectangle in O(1) time.
-
-# FIX: Force preservation of dimensions when converting to integer
 Grid = matrix(as.integer(Is_Valid), nrow = Nx, ncol = Ny)
+P = t(apply(apply(Grid, 2, cumsum), 1, cumsum))
 
-# Cumulative sum along rows (margin 2), then columns (margin 1)
-# Note: apply(mat, 1, fun) returns transposed result, so we transpose t() back at the end.
-P = t(apply(apply(Grid, 2, cumsum), 1, cumsum)) 
-# Now P[x, y] contains sum of Grid[1:x, 1:y]
-
-# Helper function to get sum of rect defined by indices (x1, y1) to (x2, y2)
 get_grid_sum_vectorized = function(idx_x1, idx_y1, idx_x2, idx_y2) {
   xa = pmin(idx_x1, idx_x2); xb = pmax(idx_x1, idx_x2)
   ya = pmin(idx_y1, idx_y2); yb = pmax(idx_y1, idx_y2)
-  
-  # Get values from P using matrix indexing
-  # We need to handle 0 carefully (if index-1 < 1)
-  
-  # Total up to bottom-right
   res = P[cbind(xb, yb)]
-  
-  # Subtract left strip (only if xa > 1)
   left_mask = xa > 1
-  if(any(left_mask)) res[left_mask] = res[left_mask] - P[cbind(xa[left_mask]-1, yb[left_mask])]
-  
-  # Subtract top strip (only if ya > 1)
+  if (any(left_mask)) res[left_mask] = res[left_mask] - P[cbind(xa[left_mask] - 1, yb[left_mask])]
   top_mask = ya > 1
-  if(any(top_mask)) res[top_mask] = res[top_mask] - P[cbind(xb[top_mask], ya[top_mask]-1)]
-  
-  # Add back top-left corner (only if xa > 1 and ya > 1)
+  if (any(top_mask)) res[top_mask] = res[top_mask] - P[cbind(xb[top_mask], ya[top_mask] - 1)]
   corner_mask = xa > 1 & ya > 1
-  if(any(corner_mask)) res[corner_mask] = res[corner_mask] + P[cbind(xa[corner_mask]-1, ya[corner_mask]-1)]
-  
+  if (any(corner_mask)) res[corner_mask] = res[corner_mask] + P[cbind(xa[corner_mask] - 1, ya[corner_mask] - 1)]
   return(res)
 }
 
-# --- 6. Solve Part 2 ---
-# Map all red tile pairs to their grid indices
-# We use the indices to check validity, but original coords for Area
 pairs_indices = expand_grid(a = 1:N, b = 1:N) |>
   filter(a < b) |>
-  mutate(
-    ix1 = map_x[a], iy1 = map_y[a],
-    ix2 = map_x[b], iy2 = map_y[b]
-  )
+  mutate(ix1 = map_x[a], iy1 = map_y[a],
+         ix2 = map_x[b], iy2 = map_y[b])
 
-# Calculate results
 final_results = pairs_indices |>
-  mutate(
-    # How many grid intersection points are in this rectangle?
-    grid_w = abs(ix1 - ix2) + 1,
-    grid_h = abs(iy1 - iy2) + 1,
-    total_grid_points = grid_w * grid_h,
-    
-    # How many VALID grid points are in this rectangle? (O(1) lookup)
-    valid_points = get_grid_sum_vectorized(ix1, iy1, ix2, iy2)
-  ) |>
-  # The rectangle is valid if and only if 100% of the grid points inside it are valid
+  mutate(grid_w = abs(ix1 - ix2) + 1,
+         grid_h = abs(iy1 - iy2) + 1,
+         total_grid_points = grid_w * grid_h,
+         valid_points = get_grid_sum_vectorized(ix1, iy1, ix2, iy2)) |>
   filter(valid_points == total_grid_points) |>
-  # Calculate actual area using original coordinates
-  mutate(
-    xa = xs[ix1], ya = ys[iy1],
-    xb = xs[ix2], yb = ys[iy2],
-    real_area = (abs(xa - xb) + 1) * (abs(ya - yb) + 1)
-  )
+  mutate(xa = xs[ix1], ya = ys[iy1],
+         xb = xs[ix2], yb = ys[iy2],
+         real_area = (abs(xa - xb) + 1) * (abs(ya - yb) + 1))
 
 sol2 = max(final_results$real_area)
 as.character(glue("Part 2 solution: {sol2}"))
